@@ -4,3 +4,4 @@
 
 # Snapshot
 
+<img src="https://raw.githubusercontent.com/gtt116/pinkie/master/snapshot.png" />
