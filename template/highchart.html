@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <title>lagou trend</title>
+  <script src="http://cdn.bootcss.com/jquery/2.1.4/jquery.min.js"></script>
+  <script src="http://cdn.bootcss.com/highcharts/4.1.7/highcharts.js"></script>
+</head>
+<body>
+ <div id="container"></div>
+ <script>
+  $('#container').highcharts({
+  title: {
+    text: "Lagou trend"
+  },
+  tooltip: {
+    shared: true,
+    crosshairs: true
+  },
+  yAxis: {
+    title: {
+      text: "Count"
+    }
+  },
+  xAxis: {
+    title: {
+      text: "Salary"
+    },
+    labels: {
+      format: "{value}K"
+    }
+  },
+  series: [
+    {% for legend, data in datas.iteritems() %}
+    {
+      data: {{ data }},
+      name: "{{ legend }}"
+    },
+    {% endfor %}
+  ] 
+});
+ </script>
+</body>
+</html>

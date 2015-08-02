@@ -2,6 +2,10 @@
 
 import requests
 import logging
+import eventlet
+import jinja2
+import os
+import json
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -42,13 +46,14 @@ class Position(object):
 
 class Stats(object):
 
-    def __init__(self):
+    def __init__(self, init=False):
         # Key is salary, e.g. 3. unit is K.
         self._postions = {}
 
-        # Init salarys, current max to 60
-        for salary in xrange(1, 61):
-            self._postions[salary] = 0
+        if init:
+            # Init salarys, current max to 60
+            for salary in xrange(1, 61):
+                self._postions[salary] = 0
 
     def add_position(self, postion):
         for salary in postion.salary_range():
@@ -66,6 +71,9 @@ class Stats(object):
     def get_stats(self):
         return self._postions
 
+    def get_stats_list(self):
+        return self._postions.items()
+
     def to_csv(self, file_name=None):
         LOG.info("Dump to %s" % file_name)
         result = []
@@ -78,6 +86,18 @@ class Stats(object):
                 output.writelines(result)
 
         return result
+
+    def get_average_salary(self):
+        total_count = 0
+        total_salary = 0
+        for salary, count in self._postions.iteritems():
+            total_salary += count * salary
+            total_count += count
+
+        try:
+            return total_salary / total_count
+        except ZeroDivisionError:
+            return 0
 
 
 class Lagou(object):
@@ -92,9 +112,14 @@ class Lagou(object):
         total_page_count = json_body['content']['totalPageCount']
         self._parse_page(json_body)
         # Get result pages
+        pool = eventlet.GreenPool()
         for page in xrange(2, total_page_count + 1):
-            json_body = self._get_page(page, keyword)
-            self._parse_page(json_body)
+            pool.spawn_n(self._process_page, page, keyword)
+        pool.waitall()
+
+    def _process_page(self, page, kw):
+        json_body = self._get_page(page, kw)
+        self._parse_page(json_body)
 
     @property
     def positions(self):
@@ -122,6 +147,27 @@ class Lagou(object):
             self._add_postion(pos)
 
 
+class HtmlRender(object):
+
+    def __init__(self):
+        self._init_env()
+        # Key is legend, value is data
+        self.datas = {}
+
+    def _init_env(self):
+        pwd = os.path.dirname(os.path.abspath(__file__))
+        template_dir = os.path.join(pwd, 'template')
+        loader = jinja2.FileSystemLoader(template_dir)
+        self.env = jinja2.Environment(loader=loader)
+
+    def render_to_html(self):
+        template = self.env.get_template('highchart.html')
+        return template.render(datas=self.datas)
+
+    def add_stats(self, legend, data):
+        self.datas[legend] = json.dumps(data)
+
+
 def save_to_csv(kw, filename=None):
     if not filename:
         filename = kw
@@ -130,12 +176,27 @@ def save_to_csv(kw, filename=None):
     lagou.process_keyword(kw)
     stats.add_bulk_position(lagou.positions)
     stats.to_csv('%s.csv' % filename.lower())
+    LOG.info("Average: %s" % stats.get_average_salary())
+
+
+def get_stats(kw):
+    stats = Stats()
+    lagou = Lagou()
+    lagou.process_keyword(kw)
+    stats.add_bulk_position(lagou.positions)
+    return stats.get_stats_list()
 
 
 if __name__ == '__main__':
-    save_to_csv('web前端', 'web')
-    save_to_csv('运维开发工程师', 'devops')
-    save_to_csv('Python')
-    save_to_csv('Java')
-    save_to_csv('Ruby')
-    save_to_csv('Node.js')
+    render = HtmlRender()
+    render.add_stats('devops', get_stats('运维开发工程师'))
+    render.add_stats('Python', get_stats('Python'))
+    render.add_stats('Java', get_stats('Java'))
+    render.add_stats('web', get_stats('web前端'))
+    render.add_stats('c++', get_stats('c++'))
+    render.add_stats('c', get_stats('c'))
+
+    with file('result.html', 'w') as output:
+        output.write(render.render_to_html())
+#    save_to_csv('web前端', 'web')
+#    save_to_csv('运维开发工程师', 'devops')
