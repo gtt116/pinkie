@@ -215,7 +215,7 @@ def _exact_ratio(x):
                     return _decimal_to_ratio(x)
                 except AttributeError:
                     msg = "can't convert type '{}' to numerator/denominator"
-                    raise TypeError(msg.format(type(x).__name__)) from None
+                    raise TypeError(msg.format(type(x).__name__))
     except (OverflowError, ValueError):
         # INF or NAN
         if __debug__:
