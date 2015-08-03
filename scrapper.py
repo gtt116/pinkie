@@ -1,11 +1,15 @@
 # -*-coding: utf8 -*-
 
-import requests
+import collections
 import logging
-import eventlet
-import jinja2
 import os
 import json
+
+import requests
+import eventlet
+import jinja2
+
+import statistics
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -46,20 +50,19 @@ class Position(object):
 
 class Stats(object):
 
-    def __init__(self, init=False):
+    def __init__(self):
         # Key is salary, e.g. 3. unit is K.
-        self._postions = {}
+        # This variable contains aggregation of salary.
+        # like {1: 10, 2: 30} means 1K
+        self._postions = collections.Counter()
 
-        if init:
-            # Init salarys, current max to 60
-            for salary in xrange(1, 61):
-                self._postions[salary] = 0
+        # this variable contains the row salary without aggreation
+        self._salaries = []
 
     def add_position(self, postion):
         for salary in postion.salary_range():
-            count = self._postions.setdefault(salary, 0)
-            count += 1
-            self._postions[salary] = count
+            self._postions[salary] += 1
+            self._salaries.append(salary)
 
     def add_bulk_position(self, postion_list):
         for pos in postion_list:
@@ -99,6 +102,10 @@ class Stats(object):
         except ZeroDivisionError:
             return 0
 
+    @property
+    def average(self):
+        return statistics.mean()
+
 
 class Lagou(object):
 
@@ -132,8 +139,15 @@ class Lagou(object):
 
     def _get_page(self, page_number, kw):
         data = self._data(page_number, kw)
-        headers = {'Content-Type':
-                   'application/x-www-form-urlencoded; charset=UTF-8'}
+        headers = {
+            'Referer': 'http://www.lagou.com/zhaopin/Java?labelWords=label',
+            'Origin': "http://www.lagou.com",
+            'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; WOW64) '
+                           'AppleWebKit/537.36 (KHTML, like Gecko) '
+                           'Chrome/44.0.2403.125 Safari/537.36'),
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+        }
         response = requests.post(self.url, data, headers=headers)
         LOG.info("Loading %s" % data)
         return response.json()
@@ -196,7 +210,7 @@ if __name__ == '__main__':
     render.add_stats('c++', get_stats('c++'))
     render.add_stats('c', get_stats('c'))
 
-    with file('result.html', 'w') as output:
+    with file('build/result.html', 'w') as output:
         output.write(render.render_to_html())
 #    save_to_csv('web前端', 'web')
 #    save_to_csv('运维开发工程师', 'devops')
