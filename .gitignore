@@ -2,3 +2,4 @@
 .venv/
 result.html
 *.pyc
+build/
