@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <title>lagou trend</title>
+  <script src="http://cdn.bootcss.com/jquery/2.1.4/jquery.min.js"></script>
+  <script src="http://cdn.bootcss.com/highcharts/4.1.7/highcharts.js"></script>
+</head>
+<body>
+ <div id="compare"></div>
+ <script>
+  $('#compare').highcharts({
+  chart: {
+    type: 'column'
+  },
+  title: {
+    text: "Lagou trend"
+  },
+  tooltip: {
+    shared: true,
+    crosshairs: true
+  },
+  yAxis: {
+    title: {
+      text: "Salary"
+    }
+  },
+  xAxis: {
+    title: {
+      text: "Position"
+    },
+    categories: {{ legends }}
+  },
+  series: [
+  {
+      name: "Mean",
+      data: {{ means }}
+  },
+  {
+      name: "Median",
+      data: {{ medians }}
+  },
+  {
+      name: "Mode",
+      data: {{ modes }}
+  }
+  ] 
+});
+ </script>
+</body>
+</html>

@@ -2,14 +2,14 @@
 
 import collections
 import logging
-import os
-import json
 
 import requests
 import eventlet
-import jinja2
 
 import statistics
+import render
+
+eventlet.monkey_patch()
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -74,7 +74,12 @@ class Stats(object):
     def get_stats(self):
         return self._postions
 
-    def get_stats_list(self):
+    def get_stats_items(self):
+        """
+        Return the result of stats:
+
+        e.g. ('Python', [1, 2], [2, 30])
+        """
         return self._postions.items()
 
     def to_csv(self, file_name=None):
@@ -103,8 +108,16 @@ class Stats(object):
             return 0
 
     @property
-    def average(self):
-        return statistics.mean()
+    def mean(self):
+        return statistics.mean(self._salaries)
+
+    @property
+    def median(self):
+        return statistics.median_high(self._salaries)
+
+    @property
+    def mode(self):
+        return statistics.mode(self._salaries)
 
 
 class Lagou(object):
@@ -161,27 +174,6 @@ class Lagou(object):
             self._add_postion(pos)
 
 
-class HtmlRender(object):
-
-    def __init__(self):
-        self._init_env()
-        # Key is legend, value is data
-        self.datas = {}
-
-    def _init_env(self):
-        pwd = os.path.dirname(os.path.abspath(__file__))
-        template_dir = os.path.join(pwd, 'template')
-        loader = jinja2.FileSystemLoader(template_dir)
-        self.env = jinja2.Environment(loader=loader)
-
-    def render_to_html(self):
-        template = self.env.get_template('highchart.html')
-        return template.render(datas=self.datas)
-
-    def add_stats(self, legend, data):
-        self.datas[legend] = json.dumps(data)
-
-
 def save_to_csv(kw, filename=None):
     if not filename:
         filename = kw
@@ -194,23 +186,32 @@ def save_to_csv(kw, filename=None):
 
 
 def get_stats(kw):
+    """
+    Return `Stats` object of the keyword
+    """
     stats = Stats()
     lagou = Lagou()
     lagou.process_keyword(kw)
     stats.add_bulk_position(lagou.positions)
-    return stats.get_stats_list()
+    return stats
 
 
 if __name__ == '__main__':
-    render = HtmlRender()
-    render.add_stats('devops', get_stats('运维开发工程师'))
-    render.add_stats('Python', get_stats('Python'))
-    render.add_stats('Java', get_stats('Java'))
-    render.add_stats('web', get_stats('web前端'))
-    render.add_stats('c++', get_stats('c++'))
-    render.add_stats('c', get_stats('c'))
 
-    with file('build/result.html', 'w') as output:
-        output.write(render.render_to_html())
-#    save_to_csv('web前端', 'web')
-#    save_to_csv('运维开发工程师', 'devops')
+    all_stats = {
+        'devops': get_stats('运维开发工程师'),
+        'Python': get_stats('Python'),
+        'Java': get_stats('Java'),
+        'web': get_stats('web'),
+        'c': get_stats('c'),
+    }
+
+    count_render = render.CounterRender()
+    compare_render = render.CompareRender()
+
+    for legend, stats in all_stats.iteritems():
+        count_render.add_stats(legend, stats.get_stats_items())
+        compare_render.add_stats(legend, stats.mean, stats.median, stats.mode)
+
+    count_render.render_to_file()
+    compare_render.render_to_file()

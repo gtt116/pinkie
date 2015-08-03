@@ -4,4 +4,5 @@
 
 # Snapshot
 
-<img src="https://raw.githubusercontent.com/gtt116/pinkie/master/snapshot.png" />
+<img src="https://raw.githubusercontent.com/gtt116/pinkie/master/snapshot/compare.png" />
+<img src="https://raw.githubusercontent.com/gtt116/pinkie/master/snapshot/count.png" />
