@@ -74,6 +74,20 @@ class Stats(object):
     def get_stats(self):
         return self._postions
 
+    def get_percent_stats(self):
+        total_count = sum(self._postions.values())
+        percent_count = {}
+        for pos, count in self._postions.iteritems():
+            try:
+                percent_count[pos] = float(count) / float(total_count)
+            except ZeroDivisionError:
+                percent_count[pos] = 0
+
+        return percent_count
+
+    def get_percent_stats_items(self):
+        return self.get_percent_stats().items()
+
     def get_stats_items(self):
         """
         Return the result of stats:
@@ -132,7 +146,7 @@ class Lagou(object):
         total_page_count = json_body['content']['totalPageCount']
         self._parse_page(json_body)
         # Get result pages
-        pool = eventlet.GreenPool()
+        pool = eventlet.GreenPool(5)
         for page in xrange(2, total_page_count + 1):
             pool.spawn_n(self._process_page, page, keyword)
         pool.waitall()
@@ -157,12 +171,13 @@ class Lagou(object):
             'Origin': "http://www.lagou.com",
             'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; WOW64) '
                            'AppleWebKit/537.36 (KHTML, like Gecko) '
-                           'Chrome/44.0.2403.125 Safari/537.36'),
+                           'Chrome/42.0.2403.125 Safari/537.36'),
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'X-Requested-With': 'XMLHttpRequest',
         }
-        response = requests.post(self.url, data, headers=headers)
         LOG.info("Loading %s" % data)
+        response = requests.post(self.url, data, headers=headers)
+        LOG.info("Loaded %s" % data)
         return response.json()
 
     def _add_postion(self, position):
@@ -210,7 +225,7 @@ if __name__ == '__main__':
     compare_render = render.CompareRender()
 
     for legend, stats in all_stats.iteritems():
-        count_render.add_stats(legend, stats.get_stats_items())
+        count_render.add_stats(legend, stats.get_percent_stats_items())
         compare_render.add_stats(legend, stats.mean, stats.median, stats.mode)
 
     count_render.render_to_file()
